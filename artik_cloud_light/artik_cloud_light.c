@@ -22,6 +22,12 @@
 #undef ARTIK_A710_GPIO1
 #define ARTIK_A710_GPIO1 38 // this is the correct GPIO number for BLUE led
 
+#undef ARTIK_A530_GPIO0
+#define ARTIK_A530_GPIO0 28 // this is the correct GPIO number for RED led
+
+#undef ARTIK_A530_GPIO1
+#define ARTIK_A530_GPIO1 38 // this is the correct GPIO number for BLUE led
+
 //URL to use for user token and user ID   https://developer.artik.cloud/api-console/
 
 static char user_token[MAX_PARAM_LEN]="--ARTIK_user_token--";
@@ -126,7 +132,7 @@ void websocket_receive_callback(void *user_data, void *result)
 }
 
 /** Open the websocket and register for the callback function to parse the recived data from AKC */
-static artik_error websocket_read(int timeout_ms, bool enable_sdr)
+static artik_error websocket_read(int timeout_ms, artik_ssl_config *p_ssl_config)
 {
 	artik_error ret = S_OK;
 	artik_cloud_module *cloud = (artik_cloud_module *)artik_request_api_module("cloud");
@@ -136,7 +142,7 @@ static artik_error websocket_read(int timeout_ms, bool enable_sdr)
 	int timeout_id = 0;
 
 	/* Open websocket to ARTIK Cloud and register device to receive messages from cloud */
-	ret = cloud->websocket_open_stream(&handle, user_token, akc_light_device_id, enable_sdr);
+	ret = cloud->websocket_open_stream(&handle, user_token, akc_light_device_id, p_ssl_config);
 	if (ret != S_OK) {
 		fprintf(stderr, "LAB3 failed, could not open Websocket (%d)\n", ret);
 		return ret;
@@ -287,7 +293,7 @@ int main(int argc, char *argv[])
 {
 	int opt;
 	artik_error ret = S_OK;
-	bool enable_sdr = false;
+	artik_ssl_config ssl_config = {0};
 
 	char msg_to_akc[MAX_PARAM_LEN];
 
@@ -307,7 +313,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	websocket_read(LAB3_TIMEOUT_MS, enable_sdr); //wait in a loop until the time out expires
+	websocket_read(LAB3_TIMEOUT_MS, &ssl_config); //wait in a loop until the time out expires
 
 	led_deinit();
 	return 0;
