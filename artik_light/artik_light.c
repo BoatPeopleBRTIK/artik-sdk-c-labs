@@ -22,6 +22,11 @@
 #undef ARTIK_A710_GPIO1
 #define ARTIK_A710_GPIO1 38 // this is the correct GPIO number for BLUE led
 
+#undef ARTIK_A530_GPIO0
+#define ARTIK_A530_GPIO0 28 // this is the correct GPIO number for RED led
+
+#undef ARTIK_A530_GPIO1
+#define ARTIK_A530_GPIO1 38 // this is the correct GPIO number for BLUE led
 
 artik_gpio_module *gpio;
 enum {
