@@ -12,70 +12,59 @@
 #include <artik_platform.h>
 #include <artik_gpio.h>
 
-#define LAB3_TIMEOUT_MS	(100*1000)
+//#define LAB3_TIMEOUT_MS	(1000*1000)
 //#define LAB3_WRITE_PERIODIC_MS (1*1000)
 #define MAX_PARAM_LEN (128)
 
-#undef ARTIK_A710_GPIO4
-#define ARTIK_A710_GPIO4 30
+#undef ARTIK_A710_GPIO0
+#define ARTIK_A710_GPIO0 28 // this is the correct GPIO number for RED led
 
-#undef ARTIK_A530_GPIO4
-#define ARTIK_A530_GPIO4 30
+#undef ARTIK_A710_GPIO1
+#define ARTIK_A710_GPIO1 38 // this is the correct GPIO number for BLUE led
 
+#undef ARTIK_A530_GPIO0
+#define ARTIK_A530_GPIO0 28 // this is the correct GPIO number for RED led
+
+#undef ARTIK_A530_GPIO1
+#define ARTIK_A530_GPIO1 38 // this is the correct GPIO number for BLUE led
+
+artik_gpio_module *gpio;
 enum {
 	R = 0,
 	B
 };
+
 struct led_gpios {
 	artik_gpio_handle handle;
 	artik_gpio_config config;
 };
-struct led_gpios leds[3];
+ struct led_gpios leds[3];
 
 
-artik_gpio_module *gpio;
-artik_gpio_handle button;
+static artik_error toggle_led(unsigned int state);
 
 
-static void button_event(void *param, int value)
+static artik_error toggle_led(unsigned int state)
 {
-	static int button_state;
 
-	fprintf(stdout, "Button event: %d\n", button_state);
+	artik_error ret = S_OK;
+	printf("GPIO value %d \n", state);
 
-	if(button_state)
+
+	//Toggle LEDs
+	if(state)
 	{
-		button_state =0;
-		gpio->write(leds[R].handle, button_state);	/* R */
+		gpio->write(leds[R].handle, 1);	/* R */
+//		gpio->write(leds[B].handle, 1);	/* B */
 	}
 	else
 	{
-		button_state =1;
-		gpio->write(leds[R].handle, button_state);	/* R */
+		gpio->write(leds[R].handle, 0);	/* R */
+//		gpio->write(leds[B].handle, 0);	/* B */
 	}
 
 
-}
-
-
-static artik_error button_deinit()
-{
-	artik_error ret = S_OK;
-	int i;
-
-	if(!gpio)
-	{
-		printf(" GPIO already de-inited \n" );
-		return ret;
-	}
-
-	gpio->unset_change_callback(button);
-	gpio->release(button);
-
-	fprintf(stdout, "TEST: %s %s\n", __func__, ret == S_OK ? "succeeded" : "failed");
-
-	artik_release_api_module(gpio);
-
+	return ret;
 }
 
 /** Register for GPIO and */
@@ -120,54 +109,28 @@ static artik_error led_init(int platid)
 		}
 
 	}
+//to test mechanism to ensure that the lights are initalized. Blink the RED leds
+#if 1
+	//Turn OFF LEDs
+	gpio->write(leds[R].handle, 0);	/* R */
+	gpio->write(leds[B].handle, 0);	/* B */
 
-	return ret;
-}
-
-static artik_error button_init(int platid)
-{
-	gpio = (artik_gpio_module *)artik_request_api_module("gpio");
-	artik_loop_module *loop = (artik_loop_module *)artik_request_api_module("loop");
-	artik_error ret = S_OK;
-//	artik_gpio_handle button;
-	artik_gpio_config config;
-
-	if (platid == ARTIK520)
-		config.id = ARTIK_A520_GPIO_XEINT3;
-	else if (platid == ARTIK1020)
-		config.id = ARTIK_A1020_GPIO_XEINT3;
-	else if (platid == ARTIK710)
-		config.id = ARTIK_A710_GPIO4;
-	else
-		config.id = ARTIK_A530_GPIO4;
-
-	config.name = "button";
-	config.dir = GPIO_IN;
-	config.edge = GPIO_EDGE_RISING;
-	config.initial_value = 0;
-
-	fprintf(stdout, "TEST: %s\n", __func__);
-
-	ret = gpio->request(&button, &config);
-	if (ret != S_OK) {
-		    //release the GPIO for Button if it is busy and retry
-		gpio->release(button);
-		ret = gpio->request(&button, &config);
-		if (ret != S_OK) {
-			fprintf(stdout, "\nButton is busy... \n");
-			return ret;
-	   }
+	i=5;
+	while(i--)
+	{
+		printf("\nSet LED (28) value : 1");
+		gpio->write(leds[R].handle, 1);	/* R */
+		sleep(2);
+		printf("\nSet LED (28) value : 0 \n");
+		gpio->write(leds[R].handle, 0);	/* B */
+		sleep(2);
+		//gpio->write(leds[B].handle, 1);	/* R */
+		//sleep(1);
+		//gpio->write(leds[B].handle, 0);	/* B */
+		//sleep(1);
 	}
+#endif
 
-	printf("Button initialized, please press the button SW403\n");
-
-	ret = gpio->set_change_callback(button, button_event, (void *)button);
-	if (ret != S_OK) {
-		fprintf(stderr, "TEST: %s failed, could not set GPIO change callback (%d)\n", __func__, ret);
-
-	}
-
-	loop->run(); //never gets out of this event unless the user press ctrl+c
 	return ret;
 }
 
@@ -183,10 +146,13 @@ static artik_error led_deinit()
 		return ret;
 	}
 
+		/* Release GPIOs for LEDs */
+	for (i = 0; i < (sizeof(leds) / sizeof(*leds)); i++){
 
-	/* Release GPIOs for LEDs */
-	for (i = 0; i < (sizeof(leds) / sizeof(*leds)); i++)
-		gpio->release(leds[i].handle);
+		ret = gpio->release(leds[i].handle);
+		if (ret != 0 ) printf("\nThe GPIO release %d failed with Err code:%d\n",leds[i].handle,ret);
+	}
+
 
 	ret = artik_release_api_module(gpio);
 	if (ret != S_OK) {
@@ -199,8 +165,6 @@ static artik_error led_deinit()
 	return ret;
 }
 
-
-
 int main(int argc, char *argv[])
 {
 	int opt;
@@ -211,7 +175,7 @@ int main(int argc, char *argv[])
 
 	int platid = artik_get_platform();
 
-
+	
 	if (!artik_is_module_available(ARTIK_MODULE_CLOUD)) {
 		fprintf(stdout,
 			"Cloud module is not available, skipping the lab...\n");
@@ -219,12 +183,11 @@ int main(int argc, char *argv[])
 	}
 
 	if ((platid == ARTIK520) || (platid == ARTIK1020) || (platid == ARTIK710) || (platid == ARTIK530)) {
+
 		ret = led_init(platid);
-		ret = button_init(platid);
+
 	}
 
 	led_deinit();
-	button_deinit();
-
 	return 0;
 }
