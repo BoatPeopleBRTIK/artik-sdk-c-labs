@@ -19,6 +19,9 @@
 #undef ARTIK_A710_GPIO4
 #define ARTIK_A710_GPIO4 30
 
+#undef ARTIK_A530_GPIO4
+#define ARTIK_A530_GPIO4 30
+
 static char user_token[MAX_PARAM_LEN]="--ARTIK_user_token--";
 static char *user_id = "--ARTIK_user_id--";
 
@@ -29,7 +32,7 @@ static char message_body[MAX_PARAM_LEN];
 
 artik_gpio_module *gpio;
 artik_gpio_handle button;
-
+artik_ssl_config ssl_config = {0};
 
 static artik_error send_cloud_message(const char *t, const char *did,
 					  const char *msg)
@@ -40,7 +43,7 @@ static artik_error send_cloud_message(const char *t, const char *did,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->send_message(t, did, msg, &response);
+	ret = cloud->send_message(t, did, msg, &response, &ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -154,7 +157,6 @@ int main(int argc, char *argv[])
 {
 	int opt;
 	artik_error ret = S_OK;
-	bool enable_sdr = false;
 
 	char msg_to_akc[MAX_PARAM_LEN];
 
